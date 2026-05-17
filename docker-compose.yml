@@ -1,0 +1,48 @@
+services:
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: martynov_web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./web/config/app.env:/app/config/app.env:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      dev_network:
+        ipv4_address: 10.10.10.2
+
+  postgres:
+    image: postgres:16
+    container_name: martynov_postgres
+    environment:
+      POSTGRES_DB: devops_db
+      POSTGRES_USER: devops_user
+      POSTGRES_PASSWORD: devops_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      dev_network:
+        ipv4_address: 10.10.10.3
+        aliases:
+          - new_db
+          - dev_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devops_user -d devops_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  dev_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.10.0/28
+
+volumes:
+  postgres_data:
